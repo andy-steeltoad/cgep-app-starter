@@ -111,8 +111,11 @@ resource "aws_dynamodb_table" "intake" {
     type = "S"
   }
 
-  # No server_side_encryption block. Defaults to AWS-owned key.
-  # GAP-02: capstone learner expected to add this with a customer-owned key.
+  # GAP-02 remediation: encrypt with the customer-managed key (grc_reqs.tf).
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.phi.arn
+  }
 }
 
 ######################################################################
@@ -205,8 +208,15 @@ resource "aws_lambda_function" "intake" {
     }
   }
 
-  # GAP-05: no vpc_config block. Learner expected to add one referencing
-  # aws_subnet.private[*] and a hardened security group.
+  # GAP-05 remediation: run in the private subnets (network resources in
+  # grc_reqs.tf).
+  vpc_config {
+    subnet_ids         = aws_subnet.private[*].id
+    security_group_ids = [aws_security_group.lambda.id]
+  }
+
+  # The role needs ENI permissions before the function can attach to the VPC.
+  depends_on = [aws_iam_role_policy_attachment.lambda_vpc_access]
 }
 
 ######################################################################
