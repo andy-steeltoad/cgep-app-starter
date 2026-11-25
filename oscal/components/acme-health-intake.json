@@ -1,0 +1,761 @@
+{
+  "component-definition": {
+    "uuid": "eba71a62-18a7-493f-bd6b-e6dfb85d452a",
+    "metadata": {
+      "title": "Acme Health Patient Intake API: CMMC Level 2 component definition",
+      "last-modified": "2026-11-25T21:44:37+00:00",
+      "version": "1.0.0",
+      "oscal-version": "1.2.1",
+      "roles": [
+        {
+          "id": "provider",
+          "title": "Provider"
+        },
+        {
+          "id": "maintainer",
+          "title": "Maintainer"
+        }
+      ],
+      "parties": [
+        {
+          "uuid": "3392b8be-0b4e-4be4-a78a-bbc17bbe9d79",
+          "type": "organization",
+          "name": "Acme Health GRC Engineering",
+          "links": [
+            {
+              "rel": "website",
+              "href": "https://github.com/andy-steeltoad/cgep-app-starter"
+            }
+          ]
+        }
+      ],
+      "remarks": "Primary framework chosen is CMMC Level 2, which maps to NIST SP 800-171 Rev. 2. However, NIST publishes 800-171 only as a Rev. 3 OSCAL catalog, so control-ids reference the Rev. 3 catalog and each implemented-requirement carries the CMMC practice ID (cmmc-practice-id) and the Rev. 2 requirement number as properties. HIPAA Security Rule and SOC 2 TSC appear only as secondary cross-reference props."
+    },
+    "components": [
+      {
+        "uuid": "9472fb96-64c7-47f2-944f-6df77ce95592",
+        "type": "service",
+        "title": "Acme Health Patient Intake API",
+        "description": "The cgep-app-starter Patient Intake API (API Gateway HTTP API -> Lambda -> DynamoDB + S3, in us-east-1), wrapped in a Terraform GRC baseline: a customer-managed KMS key, hardening overrides on the starter's S3 bucket, DynamoDB table and Lambda, a multi-region CloudTrail trail, and an Object Lock evidence vault. The baseline is enforced by a five-policy Conftest gate in GitHub Actions. Every apply on main is signed with Cosign and stored in the vault.",
+        "purpose": "Accept patient intake submissions over HTTPS while keeping PHI/CUI under customer key custody, inside a controlled network boundary, with signed and immutable evidence that the controls stay in place.",
+        "props": [
+          {
+            "name": "terraform-root-module",
+            "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+            "value": "terraform/"
+          },
+          {
+            "name": "aws-region",
+            "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+            "value": "us-east-1"
+          },
+          {
+            "name": "evidence-vault",
+            "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+            "value": "s3://grc-evidence-vault-966e7172"
+          },
+          {
+            "name": "data-classification",
+            "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+            "value": "phi"
+          }
+        ],
+        "links": [
+          {
+            "rel": "reference",
+            "href": "https://github.com/andy-steeltoad/cgep-app-starter",
+            "text": "Source repository"
+          }
+        ],
+        "responsible-roles": [
+          {
+            "role-id": "provider",
+            "party-uuids": [
+              "3392b8be-0b4e-4be4-a78a-bbc17bbe9d79"
+            ]
+          },
+          {
+            "role-id": "maintainer",
+            "party-uuids": [
+              "3392b8be-0b4e-4be4-a78a-bbc17bbe9d79"
+            ]
+          }
+        ],
+        "control-implementations": [
+          {
+            "uuid": "2ef10305-19f8-438e-bc0d-ad709975dcdd",
+            "source": "https://raw.githubusercontent.com/usnistgov/oscal-content/v1.6.0/nist.gov/SP800-171/rev3/json/NIST_SP800-171_rev3_catalog.json",
+            "description": "CMMC Level 2 practices implemented by this component, expressed against the NIST SP 800-171 Rev. 3 OSCAL catalog (pinned to oscal-content v1.6.0). Selected by oscal/profiles/cge-p-minimum.json.",
+            "props": [
+              {
+                "name": "framework",
+                "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                "value": "cmmc-l2"
+              }
+            ],
+            "implemented-requirements": [
+              {
+                "uuid": "c3f63ab1-59d6-409a-8729-a0f1d2d1d143",
+                "control-id": "SP_800_171_03.13.11",
+                "description": "Data submitted to the Patient Intake API is encrypted under a customer-managed AWS KMS key (aws_kms_key.phi, automatic annual rotation enabled, 7-day deletion window). The starter's uploads bucket is moved from AWS-managed SSE-S3 to SSE-KMS with that CMK and S3 Bucket Keys (GAP-01). The DynamoDB submissions table is moved from the AWS-owned key to the same CMK via its server_side_encryption block (GAP-02). The evidence vault, CloudTrail bucket and the CloudTrail trail itself are encrypted with the same CMK. The Lambda role may use the key only through S3 and DynamoDB (kms:ViaService condition). The Rego policy sc_3_13_11_encryption fails the plan when any aws_s3_bucket has no aws_s3_bucket_server_side_encryption_configuration referencing it.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  },
+                  {
+                    "name": "cmmc-practice-id",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "SC.L2-3.13.11"
+                  },
+                  {
+                    "name": "nist-800-171r2-requirement",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "3.13.11"
+                  },
+                  {
+                    "name": "gap-id",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "GAP-01"
+                  },
+                  {
+                    "name": "gap-id",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "GAP-02"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_kms_key.phi"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_kms_alias.phi"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_server_side_encryption_configuration.uploads"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_dynamodb_table.intake"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_iam_role_policy.lambda_phi_kms"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_server_side_encryption_configuration.vault"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_server_side_encryption_configuration.trail"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_cloudtrail.mgmt"
+                  },
+                  {
+                    "name": "policy-file",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "policies/sc_3_13_11_encryption.rego"
+                  },
+                  {
+                    "name": "policy-package",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "compliance.sc_3_13_11"
+                  },
+                  {
+                    "name": "policy-engine",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "conftest (OPA/Rego), run by scripts/policy-gate.sh"
+                  },
+                  {
+                    "name": "hipaa-security-rule",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "164.312(a)(2)(iv)"
+                  },
+                  {
+                    "name": "soc2-tsc",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "CC6.1"
+                  }
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://grc-evidence-vault-966e7172/deployments/fa00cac6122767c3eb568177b588e4becebd9ac8/45697069954-1/SHA256SUMS",
+                    "text": "Signed (Cosign keyless) manifest for the deploy.yml apply of fa00cac on main; covers plan.json, apply.txt, conftest-results.json, tfsec.sarif, deployment.json. Signature: SHA256SUMS.sigstore.json in the same prefix."
+                  },
+                  {
+                    "rel": "evidence",
+                    "href": "s3://grc-evidence-vault-966e7172/deployments/fa00cac6122767c3eb568177b588e4becebd9ac8/45697069954-1/conftest-results.json",
+                    "text": "Conftest results for the applied plan (hash listed in the signed SHA256SUMS)."
+                  },
+                  {
+                    "rel": "evidence",
+                    "href": "s3://grc-evidence-vault-966e7172/runs/45701338813-1/bundle.tar.gz",
+                    "text": "Signed (Cosign keyless) grc-gate.yml evidence bundle for PR #7. Signature: bundle.tar.gz.sigstore.json; expected sha256 in receipt.json."
+                  },
+                  {
+                    "rel": "reference",
+                    "href": "#97e031c8-8e0c-4318-85af-f8c5b792cb84"
+                  },
+                  {
+                    "rel": "reference",
+                    "href": "#5a09295c-80f1-4e03-8ca7-d4d28a3ce7af"
+                  }
+                ],
+                "remarks": "Known limitations: (1) the policy checks that an SSE configuration exists, not that sse_algorithm is aws:kms with a CMK, so a plan reverting GAP-01 to AES256 (SSE-S3) would pass the gate; (2) no policy covers the DynamoDB table, so GAP-02 is closed in Terraform only; (3) the AWS provider does not set use_fips_endpoint, so API calls use the standard (non-FIPS) service endpoints; (4) one CMK serves workload data, audit logs and evidence. Separate keys per data class are planned (see WRITEUP.md)."
+              },
+              {
+                "uuid": "9db64f30-ab13-46d7-bb5b-abf141a1481b",
+                "control-id": "SP_800_171_03.13.08",
+                "description": "CUI/PHI is protected cryptographically in transit and in storage. In transit: aws_s3_bucket_policy.uploads denies every s3:* request to the uploads bucket and its objects when aws:SecureTransport is false (GAP-03); the vault, CloudTrail and demo buckets carry the same deny. Clients reach the workload only through the API Gateway HTTP API endpoint, which is HTTPS-only (AWS-managed TLS). The Lambda reaches S3 and DynamoDB over HTTPS (tcp/443) only, through VPC gateway endpoints. In storage: see SP_800_171_03.13.11 (SSE-KMS with the customer CMK). The Rego policy sc_3_13_8_secure_transmission fails the plan when any aws_s3_bucket lacks a bucket policy with a Deny on aws:SecureTransport = false.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  },
+                  {
+                    "name": "cmmc-practice-id",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "SC.L2-3.13.8"
+                  },
+                  {
+                    "name": "nist-800-171r2-requirement",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "3.13.8"
+                  },
+                  {
+                    "name": "gap-id",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "GAP-03"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_policy.uploads"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_policy.vault"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_policy.trail"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_apigatewayv2_api.intake"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_vpc_security_group_egress_rule.lambda_s3"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_vpc_security_group_egress_rule.lambda_dynamodb"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_server_side_encryption_configuration.uploads"
+                  },
+                  {
+                    "name": "policy-file",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "policies/sc_3_13_8_secure_transmission.rego"
+                  },
+                  {
+                    "name": "policy-package",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "compliance.sc_3_13_8"
+                  },
+                  {
+                    "name": "policy-engine",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "conftest (OPA/Rego), run by scripts/policy-gate.sh"
+                  },
+                  {
+                    "name": "hipaa-security-rule",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "164.312(e)(1)"
+                  },
+                  {
+                    "name": "soc2-tsc",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "CC6.7"
+                  }
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://grc-evidence-vault-966e7172/deployments/fa00cac6122767c3eb568177b588e4becebd9ac8/45697069954-1/SHA256SUMS",
+                    "text": "Signed (Cosign keyless) manifest for the deploy.yml apply of fa00cac on main; covers plan.json, apply.txt, conftest-results.json, tfsec.sarif, deployment.json. Signature: SHA256SUMS.sigstore.json in the same prefix."
+                  },
+                  {
+                    "rel": "evidence",
+                    "href": "s3://grc-evidence-vault-966e7172/deployments/fa00cac6122767c3eb568177b588e4becebd9ac8/45697069954-1/conftest-results.json",
+                    "text": "Conftest results for the applied plan (hash listed in the signed SHA256SUMS)."
+                  },
+                  {
+                    "rel": "evidence",
+                    "href": "s3://grc-evidence-vault-966e7172/runs/45701338813-1/bundle.tar.gz",
+                    "text": "Signed (Cosign keyless) grc-gate.yml evidence bundle for PR #7. Signature: bundle.tar.gz.sigstore.json; expected sha256 in receipt.json."
+                  },
+                  {
+                    "rel": "reference",
+                    "href": "#97e031c8-8e0c-4318-85af-f8c5b792cb84"
+                  },
+                  {
+                    "rel": "reference",
+                    "href": "#5a09295c-80f1-4e03-8ca7-d4d28a3ce7af"
+                  }
+                ],
+                "remarks": "The S3 deny does not set a minimum TLS version (no s3:TlsVersion condition). API Gateway TLS is the AWS default for execute-api endpoints. No custom domain or TLS security policy is configured. The DynamoDB endpoint has no resource policy equivalent; TLS there relies on the AWS SDK default (HTTPS)."
+              },
+              {
+                "uuid": "32f67e99-4d1a-4c08-87f8-cf3e9e8a5cfc",
+                "control-id": "SP_800_171_03.13.01",
+                "description": "The intake Lambda now runs inside the VPC the starter already provisions, not in the default Lambda network (GAP-05). The private subnets get a dedicated route table with no 0.0.0.0/0 route. The only paths out are S3 and DynamoDB gateway endpoints, whose endpoint policies allow only the handler's actions on this workload's bucket and table. The Lambda security group has no ingress and allows egress only to those endpoints' prefix lists on tcp/443.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  },
+                  {
+                    "name": "cmmc-practice-id",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "SC.L2-3.13.1"
+                  },
+                  {
+                    "name": "nist-800-171r2-requirement",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "3.13.1"
+                  },
+                  {
+                    "name": "gap-id",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "GAP-05"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_lambda_function.intake"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_subnet.private"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_route_table.private"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_route_table_association.private"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_vpc_endpoint.s3"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_vpc_endpoint.dynamodb"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_security_group.lambda"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_vpc_security_group_egress_rule.lambda_s3"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_vpc_security_group_egress_rule.lambda_dynamodb"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_iam_role_policy_attachment.lambda_vpc_access"
+                  },
+                  {
+                    "name": "policy-file",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "policies/sc_3_13_1_no_internet.rego"
+                  },
+                  {
+                    "name": "policy-package",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "compliance.sc_3_13_1"
+                  },
+                  {
+                    "name": "policy-engine",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "conftest (OPA/Rego), run by scripts/policy-gate.sh"
+                  },
+                  {
+                    "name": "hipaa-security-rule",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "164.312(e)(1)"
+                  },
+                  {
+                    "name": "soc2-tsc",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "CC6.6"
+                  }
+                ],
+                "statements": [
+                  {
+                    "statement-id": "SR-03.13.01.a",
+                    "uuid": "c7a69088-d37a-4603-b735-afc47d150db4",
+                    "description": "Control: the API Gateway HTTP API (POST /intake) is the only external ingress, and the Lambda's outbound traffic is limited by the security group and gateway endpoint policies. Monitoring: CloudTrail (aws_cloudtrail.mgmt) records management-plane activity. VPC Flow Logs and API Gateway access logs (GAP-08) are not enabled, so data-plane monitoring at these interfaces is not yet implemented."
+                  },
+                  {
+                    "statement-id": "SR-03.13.01.b",
+                    "uuid": "84b51b8b-3a3a-482a-9e8b-1d5f9e60f6c5",
+                    "description": "The public subnets (aws_subnet.public, routed to the internet gateway) hold no workload components. The Lambda runs only in aws_subnet.private, which aws_route_table.private keeps logically separate, with no internet route."
+                  },
+                  {
+                    "statement-id": "SR-03.13.01.c",
+                    "uuid": "321464b0-f4e0-4d9f-8bcf-ff740b5f891c",
+                    "description": "AWS services are reached only through managed interfaces: aws_vpc_endpoint.s3 and aws_vpc_endpoint.dynamodb, each with an endpoint policy scoped to this workload's resources."
+                  }
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://grc-evidence-vault-966e7172/deployments/fa00cac6122767c3eb568177b588e4becebd9ac8/45697069954-1/SHA256SUMS",
+                    "text": "Signed (Cosign keyless) manifest for the deploy.yml apply of fa00cac on main; covers plan.json, apply.txt, conftest-results.json, tfsec.sarif, deployment.json. Signature: SHA256SUMS.sigstore.json in the same prefix."
+                  },
+                  {
+                    "rel": "evidence",
+                    "href": "s3://grc-evidence-vault-966e7172/deployments/fa00cac6122767c3eb568177b588e4becebd9ac8/45697069954-1/conftest-results.json",
+                    "text": "Conftest results for the applied plan (hash listed in the signed SHA256SUMS)."
+                  },
+                  {
+                    "rel": "evidence",
+                    "href": "s3://grc-evidence-vault-966e7172/runs/45701338813-1/bundle.tar.gz",
+                    "text": "Signed (Cosign keyless) grc-gate.yml evidence bundle for PR #7. Signature: bundle.tar.gz.sigstore.json; expected sha256 in receipt.json."
+                  },
+                  {
+                    "rel": "reference",
+                    "href": "#97e031c8-8e0c-4318-85af-f8c5b792cb84"
+                  },
+                  {
+                    "rel": "reference",
+                    "href": "#5a09295c-80f1-4e03-8ca7-d4d28a3ce7af"
+                  }
+                ],
+                "remarks": "Partial: the Rego policy sc_3_13_1_no_internet fails the plan when a route table associated with a subnet named '*private*' has a 0.0.0.0/0 route, but it does not check that aws_lambda_function.intake has vpc_config. Removing vpc_config (re-introducing GAP-05) is therefore enforced by Terraform review, not by the gate. There is no WAF, so no application-layer boundary protection."
+              },
+              {
+                "uuid": "30598549-08e1-4fac-a6af-d9c4850fa928",
+                "control-id": "SP_800_171_03.01.01",
+                "description": "CMMC practice AC.L2-3.1.1 (Rev. 2 3.1.1: limit system access to authorized users, processes and devices) corresponds to Rev. 3 03.01.01. This component implements only the resource-access part (SR-03.01.01.d). Account lifecycle requirements (a-c, e-h) are organizational processes for the AWS account and IAM Identity Center, and this component does not implement them.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  },
+                  {
+                    "name": "cmmc-practice-id",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "AC.L2-3.1.1"
+                  },
+                  {
+                    "name": "nist-800-171r2-requirement",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "3.1.1"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_public_access_block.uploads"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_public_access_block.vault"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_public_access_block.trail"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_public_access_block.prpass"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_vpc_endpoint.s3"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_vpc_endpoint.dynamodb"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_iam_role_policy.lambda_phi_kms"
+                  },
+                  {
+                    "name": "policy-file",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "policies/ac_3_1_1_no_public_access.rego"
+                  },
+                  {
+                    "name": "policy-package",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "compliance.ac_3_1_1"
+                  },
+                  {
+                    "name": "policy-engine",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "conftest (OPA/Rego), run by scripts/policy-gate.sh"
+                  },
+                  {
+                    "name": "hipaa-security-rule",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "164.312(a)(1)"
+                  },
+                  {
+                    "name": "soc2-tsc",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "CC6.1"
+                  }
+                ],
+                "statements": [
+                  {
+                    "statement-id": "SR-03.01.01.d",
+                    "uuid": "8835eb2f-f3d4-4815-94cf-cdea5a095188",
+                    "description": "Every S3 bucket in the system has an explicit aws_s3_bucket_public_access_block with all four flags true. This makes the AWS account default explicit, version-controlled and gate-enforced, so no bucket holding PHI, audit logs or evidence can grant anonymous access. The Rego policy ac_3_1_1_no_public_access fails the plan for any aws_s3_bucket without such a block. Access to the data stores is granted only to the Lambda execution role, and the gateway endpoint policies further limit it to this workload's bucket and table."
+                  }
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://grc-evidence-vault-966e7172/deployments/fa00cac6122767c3eb568177b588e4becebd9ac8/45697069954-1/SHA256SUMS",
+                    "text": "Signed (Cosign keyless) manifest for the deploy.yml apply of fa00cac on main; covers plan.json, apply.txt, conftest-results.json, tfsec.sarif, deployment.json. Signature: SHA256SUMS.sigstore.json in the same prefix."
+                  },
+                  {
+                    "rel": "evidence",
+                    "href": "s3://grc-evidence-vault-966e7172/deployments/fa00cac6122767c3eb568177b588e4becebd9ac8/45697069954-1/conftest-results.json",
+                    "text": "Conftest results for the applied plan (hash listed in the signed SHA256SUMS)."
+                  },
+                  {
+                    "rel": "evidence",
+                    "href": "s3://grc-evidence-vault-966e7172/runs/45701338813-1/bundle.tar.gz",
+                    "text": "Signed (Cosign keyless) grc-gate.yml evidence bundle for PR #7. Signature: bundle.tar.gz.sigstore.json; expected sha256 in receipt.json."
+                  },
+                  {
+                    "rel": "reference",
+                    "href": "#97e031c8-8e0c-4318-85af-f8c5b792cb84"
+                  },
+                  {
+                    "rel": "reference",
+                    "href": "#5a09295c-80f1-4e03-8ca7-d4d28a3ce7af"
+                  }
+                ],
+                "remarks": "Not closed: GAP-07. aws_iam_role_policy.lambda_inline still grants dynamodb:* and s3:* on the workload resources, so least privilege (AC.L2-3.1.5 / 03.01.05) is not claimed. The gateway endpoint policies limit what that role can do from inside the VPC, but they do not replace a scoped IAM policy."
+              },
+              {
+                "uuid": "f7a404e0-be4d-45ca-9943-2eaa22001426",
+                "control-id": "SP_800_171_03.08.09",
+                "description": "S3 versioning is enabled on the uploads bucket (GAP-04), so every overwrite or delete of a PHI attachment keeps the prior version as a recoverable backup copy in the same storage location. Those backup copies get the same confidentiality protections as current objects: SSE-KMS under the customer CMK (SR-03.08.09.b; see SP_800_171_03.13.11), the TLS-only bucket policy, and the public access block (SR-03.08.09.a). The Rego policy mp_3_8_9_versioning fails the plan for any aws_s3_bucket without aws_s3_bucket_versioning set to Enabled.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  },
+                  {
+                    "name": "cmmc-practice-id",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "MP.L2-3.8.9"
+                  },
+                  {
+                    "name": "nist-800-171r2-requirement",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "3.8.9"
+                  },
+                  {
+                    "name": "gap-id",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "GAP-04"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_versioning.uploads"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_server_side_encryption_configuration.uploads"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_policy.uploads"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_public_access_block.uploads"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "aws_s3_bucket_versioning.vault"
+                  },
+                  {
+                    "name": "policy-file",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "policies/mp_3_8_9_versioning.rego"
+                  },
+                  {
+                    "name": "policy-package",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "compliance.mp_3_8_9"
+                  },
+                  {
+                    "name": "policy-engine",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "conftest (OPA/Rego), run by scripts/policy-gate.sh"
+                  },
+                  {
+                    "name": "hipaa-security-rule",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "164.308(a)(7)"
+                  },
+                  {
+                    "name": "soc2-tsc",
+                    "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+                    "value": "A1.2"
+                  }
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://grc-evidence-vault-966e7172/deployments/fa00cac6122767c3eb568177b588e4becebd9ac8/45697069954-1/SHA256SUMS",
+                    "text": "Signed (Cosign keyless) manifest for the deploy.yml apply of fa00cac on main; covers plan.json, apply.txt, conftest-results.json, tfsec.sarif, deployment.json. Signature: SHA256SUMS.sigstore.json in the same prefix."
+                  },
+                  {
+                    "rel": "evidence",
+                    "href": "s3://grc-evidence-vault-966e7172/runs/45701338813-1/bundle.tar.gz",
+                    "text": "Signed (Cosign keyless) grc-gate.yml evidence bundle for PR #7. Signature: bundle.tar.gz.sigstore.json; expected sha256 in receipt.json."
+                  },
+                  {
+                    "rel": "reference",
+                    "href": "#97e031c8-8e0c-4318-85af-f8c5b792cb84"
+                  },
+                  {
+                    "rel": "reference",
+                    "href": "#5a09295c-80f1-4e03-8ca7-d4d28a3ce7af"
+                  }
+                ],
+                "remarks": "Partial: (1) the policy passes opa test, but scripts/policy-gate.sh calls it with namespace compliance.mp_3_8_9_versioning, which does not match the package (compliance.mp_3_8_9), so Conftest runs 0 tests and the policy is not enforced in CI; (2) the submissions table has no backup: DynamoDB point-in-time recovery is not enabled; (3) versions are kept in the same bucket and region, with no lifecycle rule for noncurrent versions and no cross-region copy."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "back-matter": {
+      "resources": [
+        {
+          "uuid": "97e031c8-8e0c-4318-85af-f8c5b792cb84",
+          "title": "Deploy evidence: main @ fa00cac, run 45697069954-1",
+          "description": "deploy.yml run on push to main: plan, Conftest gate, tfsec, apply, Cosign keyless signature over SHA256SUMS, upload to the Object Lock vault (GOVERNANCE, 30-day default retention). Verify with: EVIDENCE_VAULT=grc-evidence-vault-966e7172 bash scripts/verify-evidence.sh --deployment fa00cac6122767c3eb568177b588e4becebd9ac8/45697069954-1",
+          "props": [
+            {
+              "name": "signer-identity",
+              "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+              "value": "https://github.com/andy-steeltoad/cgep-app-starter/.github/workflows/deploy.yml@refs/heads/main"
+            },
+            {
+              "name": "captured-at",
+              "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+              "value": "2026-11-25T20:40:18Z"
+            }
+          ],
+          "rlinks": [
+            {
+              "href": "s3://grc-evidence-vault-966e7172/deployments/fa00cac6122767c3eb568177b588e4becebd9ac8/45697069954-1/SHA256SUMS"
+            },
+            {
+              "href": "s3://grc-evidence-vault-966e7172/deployments/fa00cac6122767c3eb568177b588e4becebd9ac8/45697069954-1/SHA256SUMS.sigstore.json"
+            },
+            {
+              "href": "https://github.com/andy-steeltoad/cgep-app-starter/actions/runs/45697069954"
+            }
+          ]
+        },
+        {
+          "uuid": "5a09295c-80f1-4e03-8ca7-d4d28a3ce7af",
+          "title": "PR gate evidence: PR #7, run 45701338813-1",
+          "description": "grc-gate.yml run on pull_request: plan, Conftest gate, tfsec, bundle.tar.gz signed with Cosign keyless and stored with receipt.json in the Object Lock vault. Verify with: EVIDENCE_VAULT=grc-evidence-vault-966e7172 bash scripts/verify-evidence.sh 45701338813-1",
+          "props": [
+            {
+              "name": "signer-identity",
+              "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+              "value": "https://github.com/andy-steeltoad/cgep-app-starter/.github/workflows/grc-gate.yml@refs/pull/7/merge"
+            },
+            {
+              "name": "captured-at",
+              "ns": "https://github.com/andy-steeltoad/cgep-app-starter/ns/oscal",
+              "value": "2026-11-25T21:07:40Z"
+            }
+          ],
+          "rlinks": [
+            {
+              "href": "s3://grc-evidence-vault-966e7172/runs/45701338813-1/bundle.tar.gz",
+              "hashes": [
+                {
+                  "algorithm": "SHA-256",
+                  "value": "79b5b938f22f28d9307a6735524ce00d8b5dda9a6cfc4f0e3609636bd62bde98"
+                }
+              ]
+            },
+            {
+              "href": "s3://grc-evidence-vault-966e7172/runs/45701338813-1/bundle.tar.gz.sigstore.json"
+            },
+            {
+              "href": "s3://grc-evidence-vault-966e7172/runs/45701338813-1/receipt.json"
+            },
+            {
+              "href": "https://github.com/andy-steeltoad/cgep-app-starter/actions/runs/45701338813"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
