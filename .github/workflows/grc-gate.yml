@@ -48,16 +48,13 @@ jobs:
         run: |
           terraform init -input=false
           terraform validate
-          # Same vars as Lab 2.3 / 3.4. -input=false means missing vars fail the job
-          # instead of hanging on an interactive prompt the runner can't answer.
-          terraform plan -out=tfplan -input=false -no-color \
-            -var="project_name=cgep-lab" -var="environment=dev" | tee plan.txt
+          terraform plan -out=tfplan -input=false -no-color | tee plan.txt
           terraform show -json tfplan > plan.json
 
       - name: Conftest policy gate
         id: conftest
         run: |
-          mkdir -p evidence/
+          mkdir -p evidence
           EXIT=0
           {
             echo "["
