@@ -1,0 +1,185 @@
+# .github/workflows/deploy.yml
+#
+# Deploys main after a PR has been approved and merged.
+#
+#   plan -> Conftest gate -> tfsec -> apply -> Cosign sign -> evidence vault
+#
+
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - "policies/**"
+      - ".github/workflows/deploy.yml"
+
+permissions:
+  id-token: write       # AWS OIDC + Cosign keyless signing
+  contents: read
+  pull-requests: read   # look up the merged PR's approvals for the evidence record
+
+concurrency:            # same group as grc-gate: one Terraform run at a time
+  group: terraform-state-acme-health-intake
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash         # -eo pipefail, so `| tee` does not hide failures
+
+env:
+  AWS_REGION: us-east-1
+  TF_WORKING_DIR: terraform
+  EVIDENCE_DIR: evidence
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC, deploy role)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.17.1
+          terraform_wrapper: false
+
+      - name: Install Conftest
+        run: |
+          curl -fsSL https://github.com/open-policy-agent/conftest/releases/download/v0.50.0/conftest_0.50.0_Linux_x86_64.tar.gz \
+            | tar -xz -C /usr/local/bin conftest
+
+      - name: Install tfsec
+        run: |
+          curl -fsSL https://github.com/aquasecurity/tfsec/releases/download/v1.28.14/tfsec-linux-amd64 \
+            -o /usr/local/bin/tfsec && chmod +x /usr/local/bin/tfsec
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Terraform plan
+        id: plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform init -input=false -backend-config=backend.hcl -lockfile=readonly
+          terraform validate
+          terraform plan -out=tfplan -input=false -no-color | tee plan.txt
+          terraform show -json tfplan > plan.json
+
+      # Same namespaces and logic as grc-gate.yml. Keep the two in sync.
+      - name: Conftest policy gate
+        id: conftest
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          EXIT=0
+          {
+            echo "["
+            FIRST=1
+            for ns in compliance.ac_3_1_1 compliance.mp_3_8_9_versioning compliance.sc_3_13_1 compliance.sc_3_13_8 compliance.sc_3_13_11 ; do
+              [[ $FIRST -eq 1 ]] && FIRST=0 || printf ","
+              set +e
+              OUT=$(conftest test --policy policies --namespace "$ns" --output=json "$TF_WORKING_DIR/plan.json")
+              STATUS=$?
+              set -e
+              [[ $STATUS -eq 0 ]] || EXIT=1
+              printf '%s' "$OUT"
+            done
+            echo
+            echo "]"
+          } > "$EVIDENCE_DIR/conftest-results.json"
+          if [[ $EXIT -eq 0 ]]; then echo "conftest: PASS"; else echo "conftest: FAIL"; exit 1; fi
+
+      - name: tfsec scan
+        id: tfsec
+        run: |
+          tfsec "$TF_WORKING_DIR" --format sarif --out "$EVIDENCE_DIR/tfsec.sarif" || true
+          tfsec "$TF_WORKING_DIR" --minimum-severity HIGH
+
+      # Applies the saved plan file, i.e. exactly the plan that passed the gate.
+      - name: Terraform apply
+        id: apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -input=false -no-color tfplan | tee apply.txt
+
+      # ---- Evidence: runs whether the deploy succeeded, was blocked, or failed ----
+
+      - name: Collect evidence
+        id: collect
+        if: ${{ !cancelled() && steps.plan.outcome != 'skipped' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          for f in plan.txt plan.json apply.txt; do
+            if [[ -f "$TF_WORKING_DIR/$f" ]]; then cp "$TF_WORKING_DIR/$f" "$EVIDENCE_DIR/$f"; fi
+          done
+
+          # Link this deployment back to the PR and the humans who approved it.
+          PR=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].number // empty' || true)
+          if [[ -n "$PR" ]]; then
+            REVIEWS=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/reviews" \
+              --jq '[.[] | {user: .user.login, state, commit_id, submitted_at}]')
+          else
+            REVIEWS='[]'
+          fi
+
+          jq -n \
+            --arg repo "$GITHUB_REPOSITORY" \
+            --arg sha "$GITHUB_SHA" \
+            --arg ref "$GITHUB_REF" \
+            --arg actor "$GITHUB_ACTOR" \
+            --arg run_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg pr "${PR:-}" \
+            --argjson reviews "$REVIEWS" \
+            --arg plan "${{ steps.plan.outcome }}" \
+            --arg conftest "${{ steps.conftest.outcome }}" \
+            --arg tfsec "${{ steps.tfsec.outcome }}" \
+            --arg apply "${{ steps.apply.outcome }}" \
+            --arg collected_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{repo: $repo, commit: $sha, ref: $ref, actor: $actor,
+              run_url: $run_url, run_attempt: $run_attempt,
+              pull_request: $pr, reviews: $reviews,
+              outcomes: {plan: $plan, conftest: $conftest, tfsec: $tfsec, apply: $apply},
+              collected_at: $collected_at}' > "$EVIDENCE_DIR/deployment.json"
+
+          (cd "$EVIDENCE_DIR" && sha256sum -- * > SHA256SUMS)
+          cat "$EVIDENCE_DIR/SHA256SUMS"
+
+      # Keyless: the signing cert is bound to this workflow on refs/heads/main
+      # and recorded in the Rekor transparency log.
+      - name: Sign evidence (Cosign)
+        id: sign
+        if: ${{ !cancelled() && steps.collect.outcome == 'success' }}
+        working-directory: ${{ env.EVIDENCE_DIR }}
+        run: |
+          cosign sign-blob --yes --bundle SHA256SUMS.sigstore.json SHA256SUMS
+          cosign verify-blob SHA256SUMS \
+            --bundle SHA256SUMS.sigstore.json \
+            --certificate-identity "$GITHUB_SERVER_URL/$GITHUB_WORKFLOW_REF" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          sha256sum -c SHA256SUMS
+
+      - name: Upload evidence to vault (Object Lock)
+        if: ${{ !cancelled() && steps.sign.outcome == 'success' }}
+        run: |
+          VAULT=$(terraform -chdir="$TF_WORKING_DIR" output -raw evidence_vault_bucket)
+          DEST="s3://$VAULT/deployments/$GITHUB_SHA/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/"
+          aws s3 cp "$EVIDENCE_DIR/" "$DEST" --recursive
+          echo "Evidence stored at $DEST" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload evidence artifact
+        if: ${{ !cancelled() && steps.collect.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.EVIDENCE_DIR }}
+          retention-days: 90
