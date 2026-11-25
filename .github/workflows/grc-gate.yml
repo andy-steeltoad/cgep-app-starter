@@ -13,7 +13,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  TF_WORKING_DIR: terraform/primitives/compliant-s3
+  TF_WORKING_DIR: terraform
 
 jobs:
   grc-gate:
@@ -57,13 +57,13 @@ jobs:
       - name: Conftest policy gate
         id: conftest
         run: |
-          mkdir -p evidence/lab-4-3
+          mkdir -p evidence/
           EXIT=0
           {
             echo "["
             FIRST=1
             # AWS namespaces only (same set as scripts/policy-gate.sh from Lab 3.4).
-            for ns in compliance.sc28_aws compliance.ac3_aws compliance.cm6_aws ; do
+            for ns in compliance.ac_3_1_1 compliance.mp_3_8_9_versioning compliance.sc_3_13_1 compliance.sc_3_13_8 compliance.sc_3_13_11 ; do
               [[ $FIRST -eq 1 ]] && FIRST=0 || printf ","
               set +e
               OUT=$(conftest test --policy policies --namespace "$ns" --output=json "$TF_WORKING_DIR/plan.json")
@@ -74,7 +74,7 @@ jobs:
             done
             echo
             echo "]"
-          } > evidence/lab-4-3/conftest-results.json
+          } > evidence/conftest-results.json
           if [[ $EXIT -eq 0 ]]; then echo "conftest: PASS"; else echo "conftest: FAIL"; exit 1; fi
 
       - name: tfsec scan
@@ -83,19 +83,19 @@ jobs:
         run: |
           # Write SARIF for the artifact, then re-run with a severity floor so
           # tfsec's own exit code is the gate (no JSON parsing required).
-          tfsec "$TF_WORKING_DIR" --format sarif --out evidence/lab-4-3/tfsec.sarif || true
+          tfsec "$TF_WORKING_DIR" --format sarif --out evidence/tfsec.sarif || true
           tfsec "$TF_WORKING_DIR" --minimum-severity HIGH
 
       - name: Copy plan into evidence
         if: always()
         run: |
-          cp "$TF_WORKING_DIR"/plan.json evidence/lab-4-3/plan.json
-          cp "$TF_WORKING_DIR"/plan.txt  evidence/lab-4-3/plan.txt
+          cp "$TF_WORKING_DIR"/plan.json evidence/plan.json
+          cp "$TF_WORKING_DIR"/plan.txt  evidence/plan.txt
 
       - name: Upload evidence artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: grc-evidence-${{ github.run_id }}
-          path: evidence/lab-4-3/
+          path: evidence
           retention-days: 90
