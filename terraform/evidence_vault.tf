@@ -49,14 +49,6 @@ resource "aws_s3_bucket_public_access_block" "vault" {
   restrict_public_buckets = true
 }
 
-# A bucket holds only one policy, so the TLS deny is merged into
-# aws_s3_bucket_policy.vault. Stop tracking the old separate resource
-# without deleting the policy.
-removed {
-  from = aws_s3_bucket_policy.vaultsecure
-  lifecycle { destroy = false }
-}
-
 # Deny non-TLS requests, and refuse bucket deletion from anyone except
 # the account root.
 resource "aws_s3_bucket_policy" "vault" {

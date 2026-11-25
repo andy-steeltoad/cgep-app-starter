@@ -24,3 +24,8 @@ output "vpc_id" {
 output "private_subnet_ids" {
   value = aws_subnet.private[*].id
 }
+
+output "evidence_vault_bucket" {
+  value       = aws_s3_bucket.vault.id
+  description = "Object Lock bucket that receives signed pipeline evidence."
+}

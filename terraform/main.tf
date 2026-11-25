@@ -7,7 +7,8 @@
 ######################################################################
 
 terraform {
-  required_version = ">= 1.6"
+  required_version = ">= 1.10"
+  backend "s3" {}
   required_providers {
     aws     = { source = "hashicorp/aws", version = "~> 5.0" }
     random  = { source = "hashicorp/random", version = "~> 3.6" }
@@ -54,12 +55,13 @@ resource "aws_vpc" "main" {
   tags = { Name = "${local.name_prefix}-vpc" }
 }
 
+# This is a public subnet, so the public IP is allowed.
 resource "aws_subnet" "public" {
   count                   = 2
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.42.${count.index}.0/24"
   availability_zone       = data.aws_availability_zones.available.names[count.index]
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = true #tfsec:ignore:aws-ec2-no-public-ip-subnet
 
   tags = { Name = "${local.name_prefix}-public-${count.index}" }
 }
