@@ -21,7 +21,7 @@ resource "aws_s3_bucket_object_lock_configuration" "vault" {
   rule {
     default_retention {
       mode = "GOVERNANCE" # GOVERNANCE for labs/capstone, COMPLIANCE for production
-      days = 1            # setting to 1 for capstone purposes, would be longer in an actual env
+      days = 30           # 30 days for the capstone; size to the audit/records retention requirement in production
     }
   }
 

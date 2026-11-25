@@ -91,6 +91,35 @@ resource "aws_iam_role_policy" "grc_gate_tfstate" {
   policy = local.tfstate_access_policy
 }
 
+# PR runs write their evidence bundle to the vault (grc-gate.yml ->
+# scripts/capture-evidence.sh). Write-once: PutObject only, under runs/,
+# so a PR cannot overwrite or delete deploy evidence. Object Lock and
+# versioning keep every upload. The runs/* wildcard is required because
+# each run writes a new key (runs/<run_id>-<attempt>/bundle.tar.gz).
+#tfsec:ignore:aws-iam-no-policy-wildcards
+resource "aws_iam_role_policy" "grc_gate_evidence" {
+  name = "evidence-vault-upload"
+  role = aws_iam_role.grc_gate.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "EvidenceVaultUpload"
+        Effect   = "Allow"
+        Action   = "s3:PutObject"
+        Resource = "${aws_s3_bucket.vault.arn}/runs/*"
+      },
+      {
+        Sid       = "PhiKeyViaS3ForEvidence"
+        Effect    = "Allow"
+        Action    = ["kms:GenerateDataKey", "kms:Encrypt"]
+        Resource  = aws_kms_key.phi.arn
+        Condition = { StringEquals = { "kms:ViaService" = "s3.${var.aws_region}.amazonaws.com" } }
+      },
+    ]
+  })
+}
+
 output "role_arn" { value = aws_iam_role.grc_gate.arn }
 
 ######################################################################
