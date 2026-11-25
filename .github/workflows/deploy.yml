@@ -4,7 +4,8 @@
 #
 #   plan -> Conftest gate -> tfsec -> apply -> Cosign sign -> evidence vault
 #
-
+# AWS access: cgep-deploy (terraform/oidc-trust.tf), whose trust policy
+# only accepts tokens for refs/heads/main.
 name: deploy
 
 on:
@@ -13,6 +14,7 @@ on:
     paths:
       - "terraform/**"
       - "policies/**"
+      - "scripts/policy-gate.sh"
       - ".github/workflows/deploy.yml"
 
 permissions:
@@ -72,30 +74,12 @@ jobs:
           terraform init -input=false -backend-config=backend.hcl -lockfile=readonly
           terraform validate
           terraform plan -out=tfplan -input=false -no-color | tee plan.txt
-          terraform show -json tfplan > plan.json
 
-      # Same namespaces and logic as grc-gate.yml. Keep the two in sync.
+      # Same gate as grc-gate.yml: scripts/policy-gate.sh is the single
+      # source for the policy namespaces. Writes evidence/conftest-results.json.
       - name: Conftest policy gate
         id: conftest
-        run: |
-          mkdir -p "$EVIDENCE_DIR"
-          EXIT=0
-          {
-            echo "["
-            FIRST=1
-            for ns in compliance.ac_3_1_1 compliance.mp_3_8_9_versioning compliance.sc_3_13_1 compliance.sc_3_13_8 compliance.sc_3_13_11 ; do
-              [[ $FIRST -eq 1 ]] && FIRST=0 || printf ","
-              set +e
-              OUT=$(conftest test --policy policies --namespace "$ns" --output=json "$TF_WORKING_DIR/plan.json")
-              STATUS=$?
-              set -e
-              [[ $STATUS -eq 0 ]] || EXIT=1
-              printf '%s' "$OUT"
-            done
-            echo
-            echo "]"
-          } > "$EVIDENCE_DIR/conftest-results.json"
-          if [[ $EXIT -eq 0 ]]; then echo "conftest: PASS"; else echo "conftest: FAIL"; exit 1; fi
+        run: bash scripts/policy-gate.sh --workspace "$TF_WORKING_DIR" --policy policies
 
       - name: tfsec scan
         id: tfsec

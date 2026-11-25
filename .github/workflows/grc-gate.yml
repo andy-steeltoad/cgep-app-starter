@@ -47,36 +47,21 @@ jobs:
           curl -fsSL https://github.com/aquasecurity/tfsec/releases/download/v1.28.14/tfsec-linux-amd64 \
             -o /usr/local/bin/tfsec && chmod +x /usr/local/bin/tfsec
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
       - name: Terraform plan
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
           terraform init -input=false -backend-config=backend.hcl
           terraform validate
           terraform plan -out=tfplan -input=false -no-color | tee plan.txt
-          terraform show -json tfplan > plan.json
 
+      # Same gate as deploy.yml: scripts/policy-gate.sh is the single
+      # source for the policy namespaces. Writes evidence/conftest-results.json.
       - name: Conftest policy gate
         id: conftest
-        run: |
-          mkdir -p evidence
-          EXIT=0
-          {
-            echo "["
-            FIRST=1
-            # AWS namespaces only (same set as scripts/policy-gate.sh from Lab 3.4).
-            for ns in compliance.ac_3_1_1 compliance.mp_3_8_9_versioning compliance.sc_3_13_1 compliance.sc_3_13_8 compliance.sc_3_13_11 ; do
-              [[ $FIRST -eq 1 ]] && FIRST=0 || printf ","
-              set +e
-              OUT=$(conftest test --policy policies --namespace "$ns" --output=json "$TF_WORKING_DIR/plan.json")
-              STATUS=$?
-              set -e
-              [[ $STATUS -eq 0 ]] || EXIT=1
-              printf '%s' "$OUT"
-            done
-            echo
-            echo "]"
-          } > evidence/conftest-results.json
-          if [[ $EXIT -eq 0 ]]; then echo "conftest: PASS"; else echo "conftest: FAIL"; exit 1; fi
+        run: bash scripts/policy-gate.sh --workspace "$TF_WORKING_DIR" --policy policies
 
       - name: tfsec scan
         id: tfsec
@@ -100,3 +85,20 @@ jobs:
           name: grc-evidence-${{ github.run_id }}
           path: evidence
           retention-days: 90
+      # Bundles plan, state, commit and the evidence/ folder (Conftest + tfsec
+      # results), signs it with Cosign keyless, and stores both in the same
+      # Object Lock vault deploy.yml uses. PR runs go under runs/, deploys
+      # under deployments/.
+      - name: Upload evidence to vault (Object Lock)
+        if: ${{ !cancelled() }}
+        run: |
+          VAULT=$(terraform -chdir="$TF_WORKING_DIR" output -raw evidence_vault_bucket)
+          RECEIPT=$(bash scripts/capture-evidence.sh \
+            --workspace "$TF_WORKING_DIR" \
+            --run-id "${{ github.run_id }}-${{ github.run_attempt }}" \
+            --vault "$VAULT" \
+            --evidence-dir evidence \
+            --sign \
+            --verify-identity "$GITHUB_SERVER_URL/$GITHUB_WORKFLOW_REF")
+          echo "$RECEIPT"
+          { echo '### Evidence vault receipt'; echo '```json'; echo "$RECEIPT"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
