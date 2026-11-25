@@ -21,7 +21,32 @@ resource "aws_s3_bucket_public_access_block" "trail" {
   restrict_public_buckets = true
 }
 
+# A bucket holds only one policy, so the TLS deny lives in the same
+# document as the CloudTrail statements (aws_s3_bucket_policy.trail).
+# Stop tracking the old separate resource without deleting the policy.
+removed {
+  from = aws_s3_bucket_policy.trailsecure
+  lifecycle { destroy = false }
+}
+
 data "aws_iam_policy_document" "trail" {
+  # Deny any request that isn't over TLS
+  statement {
+    sid       = "DenyInsecureTransport"
+    effect    = "Deny"
+    actions   = ["s3:*"]
+    resources = [aws_s3_bucket.trail.arn, "${aws_s3_bucket.trail.arn}/*"]
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+
   statement {
     sid       = "AWSCloudTrailAclCheck"
     effect    = "Allow"
