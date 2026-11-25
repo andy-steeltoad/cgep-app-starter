@@ -49,12 +49,28 @@ resource "aws_s3_bucket_public_access_block" "vault" {
   restrict_public_buckets = true
 }
 
-# Refuse bucket deletion from anyone except the account root.
+# A bucket holds only one policy, so the TLS deny is merged into
+# aws_s3_bucket_policy.vault. Stop tracking the old separate resource
+# without deleting the policy.
+removed {
+  from = aws_s3_bucket_policy.vaultsecure
+  lifecycle { destroy = false }
+}
+
+# Deny non-TLS requests, and refuse bucket deletion from anyone except
+# the account root.
 resource "aws_s3_bucket_policy" "vault" {
   bucket = aws_s3_bucket.vault.id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
+      Sid       = "DenyInsecureTransport"
+      Effect    = "Deny"
+      Principal = "*"
+      Action    = "s3:*"
+      Resource  = [aws_s3_bucket.vault.arn, "${aws_s3_bucket.vault.arn}/*"]
+      Condition = { Bool = { "aws:SecureTransport" = "false" } }
+      }, {
       Sid       = "DenyBucketDeletion"
       Effect    = "Deny"
       Principal = "*"
