@@ -22,6 +22,21 @@ resource "aws_kms_key" "phi" {
       Principal = { AWS = "arn:aws:iam::${local.account_id}:root" }
       Action    = "kms:*"
       Resource  = "*"
+      },
+      {
+        Sid       = "AllowCloudTrailEncrypt"
+        Effect    = "Allow"
+        Principal = { Service = "cloudtrail.amazonaws.com" }
+        Action    = ["kms:GenerateDataKey*", "kms:DescribeKey"]
+        Resource  = "*"
+        Condition = {
+          StringEquals = {
+            "aws:SourceArn" = "arn:aws:cloudtrail:${var.aws_region}:${local.account_id}:trail/cgep-capstone"
+          }
+          StringLike = {
+            "kms:EncryptionContext:aws:cloudtrail:arn" = "arn:aws:cloudtrail:*:${local.account_id}:trail/*"
+          }
+        }
     }]
   })
 }

@@ -61,16 +61,16 @@ resource "aws_iam_role_policy" "grc_gate_tfstate" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "ListStateBucket"
-        Effect   = "Allow"
-        Action   = "s3:ListBucket"
-        Resource = "arn:aws:s3:::${var.tfstate_bucket}"
+        Sid       = "ListStateBucket"
+        Effect    = "Allow"
+        Action    = "s3:ListBucket"
+        Resource  = "arn:aws:s3:::${var.tfstate_bucket}"
         Condition = { StringLike = { "s3:prefix" = ["acme-health-intake/*"] } }
       },
       {
-        Sid      = "ReadStateWriteLock"
-        Effect   = "Allow"
-        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Sid    = "ReadStateWriteLock"
+        Effect = "Allow"
+        Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
         Resource = [
           "arn:aws:s3:::${var.tfstate_bucket}/acme-health-intake/terraform.tfstate",
           "arn:aws:s3:::${var.tfstate_bucket}/acme-health-intake/terraform.tfstate.tflock",
